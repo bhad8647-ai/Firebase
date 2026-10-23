@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Animated Glassmorphic Firebase Auth</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts: Poppins -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Poppins', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              start: '#f39c12',
+              end: '#e67e22',
+            }
+          },
+          keyframes: {
+            slideUp: {
+              '0%': { transform: 'translateY(40px) scale(0.95)', opacity: '0' },
+              '100%': { transform: 'translateY(0) scale(1)', opacity: '1' },
+            },
+            float: {
+              '0%, 100%': { transform: 'translateY(0px) rotate(0deg)' },
+              '50%': { transform: 'translateY(-10px) rotate(2deg)' },
+            },
+            pulseGlow: {
+              '0%, 100%': { filter: 'drop-shadow(0 0 15px rgba(255,255,255,0.4))' },
+              '50%': { filter: 'drop-shadow(0 0 25px rgba(255,255,255,0.7))' },
+            }
+          },
+          animation: {
+            slideUp: 'slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+            float: 'float 4s ease-in-out infinite',
+            pulseGlow: 'pulseGlow 3s infinite',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom Glassmorphism Styles */
+    .glass-card {
+      background: rgba(255, 255, 255, 0.22);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+    }
+    .glass-input {
+      background: rgba(255, 255, 255, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      transition: all 0.3s ease;
+    }
+    .glass-input:focus {
+      background: rgba(255, 255, 255, 0.4);
+      border-color: rgba(255, 255, 255, 0.9);
+      box-shadow: 0 0 12px rgba(255, 255, 255, 0.5);
+      outline: none;
+    }
+    /* Animated Mascot Eyeballs */
+    .eye-pupil {
+      transition: transform 0.1s ease-out;
+    }
+    /* Hide Scrollbar */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-[#f39c12] via-[#f1c40f] to-[#e67e22] min-h-screen flex items-center justify-center p-4 font-sans text-slate-800 overflow-x-hidden relative">
+
+  <!-- Background Decorative Shapes -->
+  <div class="absolute top-10 left-10 w-48 h-48 bg-white/20 rounded-full blur-2xl pointer-events-none animate-pulse"></div>
+  <div class="absolute bottom-10 right-10 w-72 h-72 bg-orange-600/20 rounded-full blur-3xl pointer-events-none animate-pulse"></div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="fixed top-5 right-5 z-50 flex flex-col gap-3 max-w-sm w-full px-4 pointer-events-none"></div>
+
+  <!-- Main Container -->
+  <div class="w-full max-w-md glass-card rounded-3xl p-8 animate-slideUp relative z-10 shadow-2xl">
+    
+    <!-- Animated Mascot Avatar -->
+    <div id="avatarContainer" class="flex flex-col items-center mb-6 relative">
+      <div class="w-28 h-28 relative animate-float animate-pulseGlow">
+        <svg id="mascotSvg" viewBox="0 0 200 200" class="w-full h-full drop-shadow-md">
+          <!-- Character Head Base -->
+          <circle cx="100" cy="100" r="80" fill="#ffffff" />
+          <circle cx="100" cy="100" r="72" fill="#fff3e0" />
+          
+          <!-- Cute Cheeks -->
+          <circle cx="55" cy="115" r="12" fill="#ffab91" opacity="0.6" />
+          <circle cx="145" cy="115" r="12" fill="#ffab91" opacity="0.6" />
+
+          <!-- Eyes Outer -->
+          <circle cx="65" cy="85" r="18" fill="#333" />
+          <circle cx="135" cy="85" r="18" fill="#333" />
+
+          <!-- Eyes Inner White -->
+          <circle cx="65" cy="85" r="16" fill="#fff" />
+          <circle cx="135" cy="85" r="16" fill="#fff" />
+
+          <!-- Interactive Pupils -->
+          <circle id="pupilLeft" class="eye-pupil" cx="65" cy="85" r="8" fill="#2c3e50" />
+          <circle id="pupilRight" class="eye-pupil" cx="135" cy="85" r="8" fill="#2c3e50" />
+
+          <!-- Eye Highlights -->
+          <circle id="highlightLeft" class="eye-pupil" cx="62" cy="82" r="3" fill="#fff" />
+          <circle id="highlightRight" class="eye-pupil" cx="132" cy="82" r="3" fill="#fff" />
+
+          <!-- Cute Mouth -->
+          <path id="mascotMouth" d="M 85 125 Q 100 140 115 125" stroke="#2c3e50" stroke-width="5" stroke-linecap="round" fill="none" />
+
+          <!-- Hands/Paws covering eyes for password peek -->
+          <g id="pawsCover" class="transition-all duration-500 transform translate-y-24 opacity-0">
+            <ellipse cx="65" cy="90" rx="18" ry="16" fill="#f39c12" stroke="#fff" stroke-width="2" />
+            <ellipse cx="135" cy="90" rx="18" ry="16" fill="#f39c12" stroke="#fff" stroke-width="2" />
+          </g>
+        </svg>
+      </div>
+      <h2 id="portalTitle" class="text-2xl font-bold text-white text-center mt-2 tracking-wide drop-shadow-sm">Welcome Back</h2>
+      <p id="portalSubtitle" class="text-xs text-white/80 text-center mt-1 font-medium">Please enter your details to continue</p>
+    </div>
+
+    <!-- Toggle Slider Switch (Login / Register) -->
+    <div id="tabToggleContainer" class="bg-white/20 p-1.5 rounded-2xl flex items-center mb-6 relative border border-white/30 backdrop-blur-md">
+      <div id="toggleBg" class="absolute top-1.5 left-1.5 w-[calc(50%-6px)] h-[calc(100%-12px)] bg-white rounded-xl shadow-md transition-all duration-300 ease-out"></div>
+      <button id="loginTabBtn" onclick="switchForm('login')" class="flex-1 py-2 text-sm font-semibold text-slate-800 z-10 text-center transition-colors">
+        Login
+      </button>
+      <button id="registerTabBtn" onclick="switchForm('register')" class="flex-1 py-2 text-sm font-semibold text-white/80 z-10 text-center transition-colors">
+        Register Now
+      </button>
+    </div>
+
+    <!-- Form Container -->
+    <div id="formSection" class="relative">
+      
+      <!-- LOGIN FORM -->
+      <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-4 transition-all duration-300">
+        <div>
+          <label class="block text-xs font-semibold text-white/90 mb-1 ml-1">Email Address</label>
+          <div class="relative flex items-center">
+            <i class="fa-solid fa-envelope absolute left-4 text-white/70 text-sm"></i>
+            <input type="email" id="loginEmail" required placeholder="name@example.com" class="w-full glass-input pl-11 pr-4 py-3 rounded-xl text-sm text-slate-800 placeholder-white/60 font-medium">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-white/90 mb-1 ml-1">Password</label>
+          <div class="relative flex items-center">
+            <i class="fa-solid fa-lock absolute left-4 text-white/70 text-sm"></i>
+            <input type="password" id="loginPassword" required placeholder="••••••••" onfocus="coverMascotEyes(true)" onblur="coverMascotEyes(false)" class="w-full glass-input pl-11 pr-11 py-3 rounded-xl text-sm text-slate-800 placeholder-white/60 font-medium">
+            <button type="button" onclick="togglePasswordVisibility('loginPassword', this)" class="absolute right-4 text-white/70 hover:text-white transition-colors focus:outline-none">
+              <i class="fa-solid fa-eye text-sm"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="flex justify-between items-center text-xs">
+          <label class="flex items-center text-white/90 cursor-pointer">
+            <input type="checkbox" class="rounded border-white/40 text-orange-500 focus:ring-0 mr-2 accent-orange-500"> Remember me
+          </label>
+          <a href="#" onclick="handleForgotPassword(event)" class="text-white hover:underline font-semibold">Forgot Password?</a>
+        </div>
+
+        <button type="submit" id="loginSubmitBtn" class="w-full py-3.5 bg-white text-orange-600 font-bold rounded-xl shadow-lg hover:bg-orange-50 hover:shadow-xl transition-all duration-200 transform active:scale-95 flex items-center justify-center gap-2">
+          <span>Sign In</span>
+          <i class="fa-solid fa-arrow-right text-xs"></i>
+        </button>
+      </form>
+
+      <!-- REGISTER FORM -->
+      <form id="registerForm" onsubmit="handleRegister(event)" class="space-y-4 hidden transition-all duration-300">
+        <div>
+          <label class="block text-xs font-semibold text-white/90 mb-1 ml-1">Full Name</label>
+          <div class="relative flex items-center">
+            <i class="fa-solid fa-user absolute left-4 text-white/70 text-sm"></i>
+            <input type="text" id="regName" required placeholder="Alex Johnson" class="w-full glass-input pl-11 pr-4 py-3 rounded-xl text-sm text-slate-800 placeholder-white/60 font-medium">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-white/90 mb-1 ml-1">Email Address</label>
+          <div class="relative flex items-center">
+            <i class="fa-solid fa-envelope absolute left-4 text-white/70 text-sm"></i>
+            <input type="email" id="regEmail" required placeholder="name@example.com" class="w-full glass-input pl-11 pr-4 py-3 rounded-xl text-sm text-slate-800 placeholder-white/60 font-medium">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-white/90 mb-1 ml-1">Password</label>
+          <div class="relative flex items-center">
+            <i class="fa-solid fa-lock absolute left-4 text-white/70 text-sm"></i>
+            <input type="password" id="regPassword" required placeholder="••••••••" onfocus="coverMascotEyes(true)" onblur="coverMascotEyes(false)" class="w-full glass-input pl-11 pr-11 py-3 rounded-xl text-sm text-slate-800 placeholder-white/60 font-medium">
+            <button type="button" onclick="togglePasswordVisibility('regPassword', this)" class="absolute right-4 text-white/70 hover:text-white transition-colors focus:outline-none">
+              <i class="fa-solid fa-eye text-sm"></i>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" id="regSubmitBtn" class="w-full py-3.5 bg-white text-orange-600 font-bold rounded-xl shadow-lg hover:bg-orange-50 hover:shadow-xl transition-all duration-200 transform active:scale-95 flex items-center justify-center gap-2">
+          <span>Create Account</span>
+          <i class="fa-solid fa-user-plus text-xs"></i>
+        </button>
+      </form>
+
+      <!-- Social Login Divider -->
+      <div id="socialDivider" class="my-6 flex items-center justify-center gap-3">
+        <div class="h-px bg-white/30 flex-1"></div>
+        <span class="text-xs text-white/80 font-medium uppercase tracking-wider">or continue with</span>
+        <div class="h-px bg-white/30 flex-1"></div>
+      </div>
+
+      <!-- Google Sign In Button -->
+      <button id="googleBtn" type="button" onclick="handleGoogleSignIn()" class="w-full py-3 px-4 glass-input hover:bg-white/40 text-slate-800 font-semibold rounded-xl flex items-center justify-center gap-3 transition-all duration-200 shadow-sm active:scale-95">
+        <svg class="w-5 h-5" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+          <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.29v3.13C3.26 21.3 7.37 24 12 24z"/>
+          <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.6H1.29C.47 8.23 0 10.06 0 12s.47 3.77 1.29 5.4l3.99-3.13z"/>
+          <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.37 0 3.26 2.7 1.29 6.6l3.99 3.13c.95-2.83 3.6-4.98 6.72-4.98z"/>
+        </svg>
+        <span class="text-sm">Sign in with Google</span>
+      </button>
+
+    </div>
+
+    <!-- LOGGED IN USER PROFILE CARD (Initially Hidden) -->
+    <div id="profileSection" class="hidden flex flex-col items-center text-center space-y-4">
+      <div class="relative">
+        <img id="userAvatar" src="https://placehold.co/100x100/f39c12/ffffff?text=User" alt="User Profile" class="w-24 h-24 rounded-full border-4 border-white/50 shadow-lg object-cover">
+        <span class="absolute bottom-1 right-1 w-4 h-4 bg-emerald-400 border-2 border-white rounded-full"></span>
+      </div>
+
+      <div>
+        <h3 id="userName" class="text-xl font-bold text-white tracking-wide">User Name</h3>
+        <p id="userEmail" class="text-xs text-white/80 font-medium mt-0.5">user@example.com</p>
+      </div>
+
+      <div class="w-full bg-white/20 rounded-2xl p-4 border border-white/30 text-left text-xs text-white/90 space-y-2">
+        <div class="flex justify-between items-center">
+          <span class="opacity-75">Account Type:</span>
+          <span id="authProvider" class="font-semibold bg-white/30 px-2 py-0.5 rounded-full">Email</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="opacity-75">Status:</span>
+          <span class="font-semibold text-emerald-200">Active Session</span>
+        </div>
+      </div>
+
+      <button onclick="handleSignOut()" class="w-full py-3.5 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl shadow-lg transition-all duration-200 transform active:scale-95 flex items-center justify-center gap-2">
+        <i class="fa-solid fa-right-from-bracket"></i>
+        <span>Sign Out</span>
+      </button>
+    </div>
+
+  </div>
+
+  <!-- FIREBASE AUTH SDK SCRIPT (v10 Modular via CDN) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { 
+      getAuth, 
+      signInWithEmailAndPassword, 
+      createUserWithEmailAndPassword, 
+      signInWithPopup, 
+      GoogleAuthProvider, 
+      signOut, 
+      onAuthStateChanged,
+      updateProfile,
+      sendPasswordResetEmail,
+      signInAnonymously,
+      signInWithCustomToken
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+    // Global Environment Config Setup
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'demo-auth-app';
+    const firebaseConfig = typeof __firebase_config !== 'undefined' 
+      ? JSON.parse(__firebase_config) 
+      : {
+          // Your Firebase project config
+          apiKey: "AIzaSyB9RiNAe-WTtlH650DKWUJ-KLcIqaq0sgA",
+          authDomain: "beros-base-server.firebaseapp.com",
+          projectId: "beros-base-server",
+          storageBucket: "beros-base-server.firebasestorage.app",
+          messagingSenderId: "940726741661",
+          appId: "1:940726741661:web:aa907ba675b81a500e8274",
+          measurementId: "G-4RXQ2NTFBN"
+        };
+
+    // Initialize Firebase Services
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const googleProvider = new GoogleAuthProvider();
+
+    // DOM References
+    const loginForm = document.getElementById('loginForm');
+    const registerForm = document.getElementById('registerForm');
+    const profileSection = document.getElementById('profileSection');
+    const avatarContainer = document.getElementById('avatarContainer');
+    const tabToggleContainer = document.getElementById('tabToggleContainer');
+    const socialDivider = document.getElementById('socialDivider');
+    const googleBtn = document.getElementById('googleBtn');
+    const portalTitle = document.getElementById('portalTitle');
+    const portalSubtitle = document.getElementById('portalSubtitle');
+
+    // Authentication State Observer
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // Render Profile State
+        document.getElementById('userName').textContent = user.displayName || user.email.split('@')[0];
+        document.getElementById('userEmail').textContent = user.email || 'Anonymous User';
+        
+        const photoUrl = user.photoURL || `https://placehold.co/100x100/f39c12/ffffff?text=${(user.displayName || user.email || 'U')[0].toUpperCase()}`;
+        document.getElementById('userAvatar').src = photoUrl;
+        
+        const providerId = user.providerData[0]?.providerId || 'firebase';
+        document.getElementById('authProvider').textContent = providerId.includes('google') ? 'Google OAuth' : 'Email/Password';
+
+        // Hide Auth Forms, Show Profile
+        loginForm.classList.add('hidden');
+        registerForm.classList.add('hidden');
+        tabToggleContainer.classList.add('hidden');
+        socialDivider.classList.add('hidden');
+        googleBtn.classList.add('hidden');
+        avatarContainer.classList.add('hidden');
+
+        profileSection.classList.remove('hidden');
+      } else {
+        // Render Login/Register Form State
+        profileSection.classList.add('hidden');
+        tabToggleContainer.classList.remove('hidden');
+        socialDivider.classList.remove('hidden');
+        googleBtn.classList.remove('hidden');
+        avatarContainer.classList.remove('hidden');
+        
+        // Default to active tab
+        const currentTab = window.currentTab || 'login';
+        switchForm(currentTab);
+      }
+    });
+
+    // Form Handlers
+    window.handleLogin = async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+      const submitBtn = document.getElementById('loginSubmitBtn');
+
+      setButtonLoading(submitBtn, true);
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+        showToast('Successfully logged in!', 'success');
+      } catch (error) {
+        console.error("Login Error:", error);
+        showToast(getAuthErrorMessage(error.code), 'error');
+      } finally {
+        setButtonLoading(submitBtn, false);
+      }
+    };
+
+    window.handleRegister = async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('regName').value;
+      const email = document.getElementById('regEmail').value;
+      const password = document.getElementById('regPassword').value;
+      const submitBtn = document.getElementById('regSubmitBtn');
+
+      setButtonLoading(submitBtn, true);
+      try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        await updateProfile(userCredential.user, { displayName: name });
+        showToast('Account created successfully!', 'success');
+      } catch (error) {
+        console.error("Registration Error:", error);
+        showToast(getAuthErrorMessage(error.code), 'error');
+      } finally {
+        setButtonLoading(submitBtn, false);
+      }
+    };
+
+    window.handleGoogleSignIn = async () => {
+      try {
+        await signInWithPopup(auth, googleProvider);
+        showToast('Signed in with Google!', 'success');
+      } catch (error) {
+        console.error("Google Auth Error:", error);
+        showToast(getAuthErrorMessage(error.code), 'error');
+      }
+    };
+
+    window.handleSignOut = async () => {
+      try {
+        await signOut(auth);
+        showToast('Logged out successfully.', 'info');
+      } catch (error) {
+        showToast('Error signing out.', 'error');
+      }
+    };
+
+    window.handleForgotPassword = async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value;
+      if (!email) {
+        showToast('Please enter your email address first.', 'warning');
+        return;
+      }
+      try {
+        await sendPasswordResetEmail(auth, email);
+        showToast('Password reset link sent to your email!', 'success');
+      } catch (error) {
+        console.error("Password Reset Error:", error);
+        showToast(getAuthErrorMessage(error.code), 'error');
+      }
+    };
+
+    // ---------------------------------------------------------------
+    // UI Helpers
+    // ---------------------------------------------------------------
+
+    // Switch between Login and Register tabs
+    window.switchForm = (tab) => {
+      window.currentTab = tab;
+      const isLogin = tab === 'login';
+      const loginTabBtn = document.getElementById('loginTabBtn');
+      const registerTabBtn = document.getElementById('registerTabBtn');
+
+      loginForm.classList.toggle('hidden', !isLogin);
+      registerForm.classList.toggle('hidden', isLogin);
+
+      // Slide the white pill behind the active tab
+      document.getElementById('toggleBg').style.left = isLogin ? '6px' : '50%';
+
+      loginTabBtn.classList.toggle('text-slate-800', isLogin);
+      loginTabBtn.classList.toggle('text-white/80', !isLogin);
+      registerTabBtn.classList.toggle('text-slate-800', !isLogin);
+      registerTabBtn.classList.toggle('text-white/80', isLogin);
+
+      portalTitle.textContent = isLogin ? 'Welcome Back' : 'Join Us Today';
+      portalSubtitle.textContent = isLogin
+        ? 'Please enter your details to continue'
+        : 'Create an account to get started';
+
+      coverMascotEyes(false);
+    };
+
+    // Mascot paws cover its eyes while a password field is focused
+    window.coverMascotEyes = (cover) => {
+      const paws = document.getElementById('pawsCover');
+      if (!paws) return;
+      paws.classList.toggle('translate-y-24', !cover);
+      paws.classList.toggle('opacity-0', !cover);
+      paws.classList.toggle('translate-y-0', cover);
+      paws.classList.toggle('opacity-100', cover);
+    };
+
+    // Show / hide password text
+    window.togglePasswordVisibility = (inputId, btn) => {
+      const input = document.getElementById(inputId);
+      const icon = btn.querySelector('i');
+      const showing = input.type === 'text';
+
+      input.type = showing ? 'password' : 'text';
+      icon.classList.toggle('fa-eye', showing);
+      icon.classList.toggle('fa-eye-slash', !showing);
+
+      // Mascot peeks while the password is visible
+      if (document.activeElement === input || !showing) {
+        coverMascotEyes(showing);
+      }
+    };
+
+    // Loading state for submit buttons
+    function setButtonLoading(btn, isLoading) {
+      if (isLoading) {
+        btn.dataset.originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.classList.add('opacity-80', 'cursor-not-allowed');
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Please wait...</span>';
+      } else {
+        btn.disabled = false;
+        btn.classList.remove('opacity-80', 'cursor-not-allowed');
+        if (btn.dataset.originalHtml) btn.innerHTML = btn.dataset.originalHtml;
+      }
+    }
+
+    // Toast notifications
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const styles = {
+        success: { bg: 'bg-emerald-500/90', icon: 'fa-circle-check' },
+        error:   { bg: 'bg-red-500/90',     icon: 'fa-circle-xmark' },
+        warning: { bg: 'bg-amber-500/90',   icon: 'fa-triangle-exclamation' },
+        info:    { bg: 'bg-sky-500/90',     icon: 'fa-circle-info' }
+      };
+      const s = styles[type] || styles.info;
+
+      const toast = document.createElement('div');
+      toast.className = `pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium text-white backdrop-blur-md border border-white/30 animate-slideUp transition-all duration-300 ${s.bg}`;
+
+      const icon = document.createElement('i');
+      icon.className = `fa-solid ${s.icon}`;
+      const text = document.createElement('span');
+      text.textContent = message;
+
+      toast.appendChild(icon);
+      toast.appendChild(text);
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(30px)';
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    // Friendly Firebase error messages
+    function getAuthErrorMessage(code) {
+      const messages = {
+        'auth/invalid-email': 'That email address looks invalid.',
+        'auth/user-not-found': 'No account found with that email.',
+        'auth/wrong-password': 'Incorrect password. Please try again.',
+        'auth/invalid-credential': 'Incorrect email or password.',
+        'auth/email-already-in-use': 'An account with this email already exists.',
+        'auth/weak-password': 'Password should be at least 6 characters.',
+        'auth/missing-password': 'Please enter your password.',
+        'auth/too-many-requests': 'Too many attempts. Please try again later.',
+        'auth/network-request-failed': 'Network error. Check your connection.',
+        'auth/popup-closed-by-user': 'Sign-in popup was closed before finishing.',
+        'auth/cancelled-popup-request': 'Sign-in was cancelled.',
+        'auth/popup-blocked': 'Popup was blocked. Please allow popups and retry.',
+        'auth/operation-not-allowed': 'This sign-in method is not enabled in Firebase.',
+        'auth/unauthorized-domain': 'This domain is not authorized in your Firebase settings.',
+        'auth/invalid-api-key': 'Invalid Firebase API key. Update the config in index.html.',
+        'auth/api-key-not-valid.-please-pass-a-valid-api-key.': 'Invalid Firebase API key. Update the config in index.html.',
+        'auth/user-disabled': 'This account has been disabled.'
+      };
+      return messages[code] || 'Something went wrong. Please try again.';
+    }
+
+    // Mascot eyes follow the cursor
+    const mascotSvg = document.getElementById('mascotSvg');
+    const eyeParts = [
+      document.getElementById('pupilLeft'),
+      document.getElementById('pupilRight'),
+      document.getElementById('highlightLeft'),
+      document.getElementById('highlightRight')
+    ];
+
+    function moveEyes(clientX, clientY) {
+      const rect = mascotSvg.getBoundingClientRect();
+      if (!rect.width) return; // mascot hidden (logged in)
+
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height * 0.42;
+      const dx = clientX - centerX;
+      const dy = clientY - centerY;
+      const dist = Math.hypot(dx, dy) || 1;
+
+      const maxOffset = 6; // in SVG units
+      const strength = Math.min(1, dist / 160);
+      const offsetX = (dx / dist) * maxOffset * strength;
+      const offsetY = (dy / dist) * maxOffset * strength;
+
+      eyeParts.forEach((el) => {
+        el.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
+      });
+    }
+
+    document.addEventListener('mousemove', (e) => moveEyes(e.clientX, e.clientY));
+    document.addEventListener('touchmove', (e) => {
+      const t = e.touches[0];
+      if (t) moveEyes(t.clientX, t.clientY);
+    }, { passive: true });
+    document.addEventListener('mouseleave', () => {
+      eyeParts.forEach((el) => { el.style.transform = 'translate(0px, 0px)'; });
+    });
+  </script>
+</body>
+</html>
